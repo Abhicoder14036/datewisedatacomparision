@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>State & District Data Comparison</title>
+
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <!-- ArcGIS CSS -->
+    <link rel="stylesheet" href="https://js.arcgis.com/4.29/esri/themes/light/main.css">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --accent-color: #6c63ff;
+            --dark-bg: #1a1d29;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --glass-effect: rgba(255, 255, 255, 0.25);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .dashboard-container {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .glass-card {
+            background: var(--glass-effect);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .glass-card-solid {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .navbar-glass {
+            background: var(--glass-effect) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-glass {
+            background: var(--glass-effect);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .toggle-basemap {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+        }
+
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-primary-glass {
+            background: var(--primary-gradient);
+            border: none;
+            color: white;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary-glass:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        #viewDiv {
+            height: 100%;
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .control-panel {
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+            width: 23%;
+        }
+
+        .chart-container {
+            height: 100%;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .map-container {
+            position: relative;
+            height: 100%;
+        }
+
+        .floating-control {
+            position: absolute;
+            z-index: 1000;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            max-width: 300px;
+        }
+
+        .legend-container {
+            bottom: 20px;
+            left: 20px;
+        }
+
+        .basemap-container {
+            top: 80px;
+            right: 80px;
+            display: none;
+            /* Hidden by default */
+        }
+
+        .basemap-container.visible {
+            display: block;
+        }
+
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            border-radius: 12px;
+        }
+
+        .spinner-border {
+            width: 3rem;
+            height: 3rem;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 10px;
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            padding: 12px 15px;
+            transition: all 0.3s ease;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+            border-color: #667eea;
+        }
+
+        .custom-checkbox .form-check-input:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .stats-card {
+            background: var(--primary-gradient);
+            color: white;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .chart-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        .section-title {
+            font-weight: 700;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            position: relative;
+            padding-bottom: 10px;
+        }
+
+        .section-title:after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 50px;
+            height: 3px;
+            background: var(--primary-gradient);
+            border-radius: 3px;
+        }
+
+        .toggle-btn {
+            background: var(--primary-gradient);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1001;
+        }
+
+        .toggle-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .toggle-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .toggle-charts {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+
+        .navbar-brand {
+            font-weight: 800;
+            font-size: 1.5rem;
+        }
+
+        .nav-icon {
+            margin-right: 8px;
+        }
+
+        .esri-ui-top-left {
+            align-items: flex-start !important;
+            top: 90% !important;
+            left: 97% !important;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-color);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a52e0;
+        }
+
+        /* Mobile Responsive Styles */
+        @media (max-width: 1200px) {
+            .control-panel, .chart-container {
+                width: 25%;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .dashboard-container {
+                height: auto;
+                min-height: 100vh;
+            }
+            
+            .container-fluid.flex-grow-1 {
+                flex-direction: column;
+                overflow-y: auto;
+                height: auto;
+            }
+            
+            .control-panel, .chart-container, .map-container {
+                width: 100% !important;
+                height: auto;
+                margin-bottom: 15px;
+            }
+            
+            .map-container {
+                height: 400px;
+                min-height: 400px;
+            }
+            
+            .control-panel, .chart-container {
+                max-height: 500px;
+            }
+            
+            .toggle-controls, .toggle-charts {
+                position: fixed;
+                z-index: 1002;
+            }
+            
+            .toggle-controls {
+                top: 80px;
+                left: 10px;
+            }
+            
+            .toggle-charts {
+                top: 80px;
+                right: 10px;
+            }
+            
+            .toggle-basemap {
+                top: 140px;
+                right: 10px;
+            }
+            
+            .floating-control {
+                max-width: calc(100% - 40px);
+                left: 20px;
+                right: 20px;
+            }
+            
+            .legend-container {
+                bottom: 10px;
+            }
+            
+            .basemap-container {
+                top: 140px;
+                right: 10px;
+                max-width: calc(100% - 40px);
+            }
+            
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+            
+            .btn-glass {
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+            
+            .section-title {
+                font-size: 1.2rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .toggle-btn {
+                width: 45px;
+                height: 45px;
+            }
+            
+            .map-container {
+                height: 350px;
+                min-height: 350px;
+            }
+            
+            .control-panel, .chart-container {
+                max-height: 400px;
+            }
+            
+            .chart-card {
+                padding: 15px;
+            }
+            
+            .stats-card {
+                padding: 12px;
+            }
+            
+            .form-control, .form-select {
+                padding: 10px 12px;
+            }
+            
+            .btn-primary-glass {
+                padding: 12px;
+            }
+            
+            .navbar .container-fluid {
+                flex-wrap: nowrap;
+            }
+            
+            .navbar .d-flex {
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+            
+            .navbar .btn-glass {
+                margin-bottom: 5px;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .map-container {
+                height: 300px;
+                min-height: 300px;
+            }
+            
+            .control-panel, .chart-container {
+                max-height: 350px;
+                padding: 15px;
+            }
+            
+            .toggle-controls {
+                top: 70px;
+            }
+            
+            .toggle-charts {
+                top: 70px;
+            }
+            
+            .toggle-basemap {
+                top: 120px;
+            }
+            
+            .basemap-container {
+                top: 120px;
+            }
+            
+            .navbar-brand {
+                font-size: 1.1rem;
+            }
+            
+            .btn-glass {
+                font-size: 0.8rem;
+                padding: 6px 10px;
+            }
+            
+            .section-title {
+                font-size: 1.1rem;
+            }
+            
+            .floating-control {
+                padding: 12px;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .map-container {
+                height: 250px;
+                min-height: 250px;
+            }
+            
+            .control-panel, .chart-container {
+                max-height: 300px;
+                padding: 10px;
+            }
+            
+            .chart-card {
+                padding: 10px;
+                margin-bottom: 15px;
+            }
+            
+            .toggle-btn {
+                width: 40px;
+                height: 40px;
+            }
+            
+            .toggle-btn i {
+                font-size: 0.9rem;
+            }
+            
+            .navbar-brand {
+                font-size: 1rem;
+            }
+            
+            .btn-glass {
+                font-size: 0.75rem;
+                padding: 5px 8px;
+            }
+        }
+
+        /* Mobile panel toggling */
+        .mobile-panel-hidden {
+            display: none !important;
+        }
+        
+        .mobile-panel-visible {
+            display: block !important;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1003;
+            background: white;
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .mobile-panel-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            z-index: 1004;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="dashboard-container">
+        <!-- Navigation Bar -->
+        <nav class="navbar navbar-glass navbar-expand-lg">
+            <div class="container-fluid">
+                <a class="navbar-brand text-white" href="#">
+                    <i class="bi bi-bar-chart-line-fill nav-icon"></i>GeoAnalytics
+                </a>
+                <div class="d-flex">
+                    <button class="btn btn-glass me-2">
+                        <i class="bi bi-download"></i> <span class="d-none d-md-inline">Export</span>
+                    </button>
+                    <button class="btn btn-glass">
+                        <i class="bi bi-gear"></i> <span class="d-none d-md-inline">Settings</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="container-fluid flex-grow-1 d-flex p-3" style="gap: 20px; overflow: hidden;">
+            <!-- Controls Panel -->
+            <div class="col-md-3 glass-card-solid control-panel" id="controlsPanel">
+                <button class="btn btn-secondary mobile-panel-close d-md-none" id="closeControlsPanel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                <h4 class="section-title">
+                    <i class="bi bi-funnel"></i> Data Filters
+                </h4>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Geographic Area</label>
+                    <select class="form-select mb-3" id="stateDropdown">
+                        <option value="">Select State</option>
+                    </select>
+                    <select class="form-select" id="districtDropdown">
+                        <option value="">Select District</option>
+                    </select>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Date Range</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <input type="text" class="form-control" id="dateFrom" placeholder="From Date">
+                        </div>
+                        <div class="col-6">
+                            <input type="text" class="form-control" id="dateTo" placeholder="To Date">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label fw-semibold">Data Layers</label>
+                    <div class="row">
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="Bank Branch" id="bankBranch"
+                                    checked>
+                                <label class="form-check-label" for="bankBranch">Bank Branch</label>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="ATM" id="atm" checked>
+                                <label class="form-check-label" for="atm">ATM</label>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="Bank Mitra" id="bankMitra">
+                                <label class="form-check-label" for="bankMitra">Bank Mitra</label>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="IPPB" id="ippb">
+                                <label class="form-check-label" for="ippb">IPPB</label>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="CSC" id="csc">
+                                <label class="form-check-label" for="csc">CSC</label>
+                            </div>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <div class="form-check custom-checkbox">
+                                <input class="form-check-input" type="checkbox" value="Post Office" id="postOffice">
+                                <label class="form-check-label" for="postOffice">Post Office</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary-glass w-100 py-3 fw-bold" id="submitBtn">
+                    <i class="bi bi-play-circle"></i> Analyze Data
+                </button>
+
+                <div class="mt-4">
+                    <h5 class="fw-semibold mb-3">Quick Stats</h5>
+                    <div id="countsBox">
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-graph-up" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">Select filters and analyze data to see statistics</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Map Container -->
+            <div class="col-md-6 position-relative map-container">
+                <div id="viewDiv" class="glass-card"></div>
+
+                <!-- Loading Overlay -->
+                <div class="loading-overlay" id="loadingOverlay" style="display: none;">
+                    <div class="text-center text-white">
+                        <div class="spinner-border text-light mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <h5>Loading Data...</h5>
+                        <p class="mb-0">Please wait while we process your request</p>
+                    </div>
+                </div>
+
+                <!-- Toggle Buttons -->
+                <button class="toggle-btn toggle-controls" id="toggleControls">
+                    <i class="bi bi-sliders"></i>
+                </button>
+
+                <button class="toggle-btn toggle-charts" id="toggleCharts">
+                    <i class="bi bi-bar-chart"></i>
+                </button>
+
+                <button class="toggle-btn toggle-basemap" id="toggleBasemap" title="Toggle Basemap Selector">
+                    <i class="bi bi-map"></i>
+                </button>
+
+                <!-- Floating Controls -->
+                <div class="floating-control legend-container">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <h6 class="mb-0 fw-bold"><i class="bi bi-palette"></i> Legend</h6>
+                        <button class="btn btn-sm btn-outline-secondary" id="toggleLegend">
+                            <i class="bi bi-dash"></i>
+                        </button>
+                    </div>
+                    <div id="legendItems"></div>
+                </div>
+
+                <div class="floating-control basemap-container" id="basemapContainer">
+                    <label class="form-label fw-semibold"><i class="bi bi-map"></i> Basemap</label>
+                    <select class="form-select" id="basemapSelect">
+                        <option value="streets-vector">Streets</option>
+                        <option value="satellite">Satellite</option>
+                        <option value="hybrid">Hybrid</option>
+                        <option value="terrain">Terrain</option>
+                        <option value="dark-gray-vector">Dark Gray</option>
+                        <option value="gray-vector">Light Gray</option>
+                        <option value="navigation-vector">Navigation</option>
+                        <option value="osm">OpenStreetMap</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Charts Panel -->
+            <div class="col-md-3 glass-card-solid chart-container" id="chartsPanel">
+                <button class="btn btn-secondary mobile-panel-close d-md-none" id="closeChartsPanel">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+                <h4 class="section-title">
+                    <i class="bi bi-graph-up"></i> Data Visualization
+                </h4>
+
+                <div class="chart-card">
+                    <h6 class="fw-semibold text-center">Monthly Comparison</h6>
+                    <canvas id="monthlyChart" height="250"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h6 class="fw-semibold text-center">Layer Distribution</h6>
+                    <canvas id="layerChart" height="200"></canvas>
+                </div>
+
+                <div class="chart-card">
+                    <h6 class="fw-semibold text-center">Growth Trend</h6>
+                    <canvas id="trendChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://js.arcgis.com/4.29/"></script>
+
+    <script>
+        // Initialize date pickers
+        flatpickr("#dateFrom", {
+            dateFormat: "Y-m-d",
+            defaultDate: "2023-01-01",
+            maxDate: "today"
+        });
+
+        flatpickr("#dateTo", {
+            dateFormat: "Y-m-d",
+            defaultDate: "today",
+            maxDate: "today"
+        });
+
+        // Mobile panel toggling
+        const isMobile = window.innerWidth < 992;
+        
+        if (isMobile) {
+            document.getElementById('controlsPanel').classList.add('mobile-panel-hidden');
+            document.getElementById('chartsPanel').classList.add('mobile-panel-hidden');
+        }
+
+        // Toggle panels for desktop
+        document.getElementById('toggleControls').addEventListener('click', function () {
+            if (isMobile) {
+                document.getElementById('controlsPanel').classList.add('mobile-panel-visible');
+            } else {
+                const controlsPanel = document.getElementById('controlsPanel');
+                controlsPanel.classList.toggle('d-none');
+                controlsPanel.classList.toggle('col-md-3');
+            }
+        });
+
+        document.getElementById('toggleCharts').addEventListener('click', function () {
+            if (isMobile) {
+                document.getElementById('chartsPanel').classList.add('mobile-panel-visible');
+            } else {
+                const chartsPanel = document.getElementById('chartsPanel');
+                chartsPanel.classList.toggle('d-none');
+                chartsPanel.classList.toggle('col-md-3');
+            }
+        });
+
+        // Close mobile panels
+        document.getElementById('closeControlsPanel').addEventListener('click', function() {
+            document.getElementById('controlsPanel').classList.remove('mobile-panel-visible');
+        });
+
+        document.getElementById('closeChartsPanel').addEventListener('click', function() {
+            document.getElementById('chartsPanel').classList.remove('mobile-panel-visible');
+        });
+
+        // Toggle legend
+        document.getElementById('toggleLegend').addEventListener('click', function () {
+            const legendItems = document.getElementById('legendItems');
+            const icon = this.querySelector('i');
+            if (legendItems.style.display === 'none') {
+                legendItems.style.display = 'block';
+                icon.className = 'bi bi-dash';
+            } else {
+                legendItems.style.display = 'none';
+                icon.className = 'bi bi-plus';
+            }
+        });
+
+        let basemapVisible = false;
+
+        // Toggle basemap selector
+        document.getElementById('toggleBasemap').addEventListener('click', function () {
+            const basemapContainer = document.getElementById('basemapContainer');
+            basemapVisible = !basemapVisible;
+
+            if (basemapVisible) {
+                basemapContainer.classList.add('visible');
+                this.innerHTML = '<i class="bi bi-map-fill"></i>';
+            } else {
+                basemapContainer.classList.remove('visible');
+                this.innerHTML = '<i class="bi bi-map"></i>';
+            }
+        });
+
+        // Main Application Logic
+        require([
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/Graphic",
+            "esri/layers/GraphicsLayer",
+            "esri/Basemap",
+            "esri/geometry/geometryEngine"
+        ], function (Map, MapView, FeatureLayer, Graphic, GraphicsLayer, Basemap, geometryEngine) {
+
+            // Initialize the map
+            const map = new Map({
+                basemap: "streets-vector"
+            });
+
+            const view = new MapView({
+                container: "viewDiv",
+                map,
+                center: [78, 22],
+                zoom: 4
+            });
+
+            // Set up basemap selector
+            const basemapSelect = document.getElementById('basemapSelect');
+            basemapSelect.addEventListener('change', function () {
+                map.basemap = this.value;
+            });
+
+            // State and District layers
+            const stateLayer = new FeatureLayer({
+                url: "Add layer for State",
+                outFields: ["stname"]
+            });
+
+            const districtLayer = new FeatureLayer({
+                url: "Add layer for the District",
+                outFields: ["dtname", "stname"]
+            });
+
+            map.add(stateLayer);
+            map.add(districtLayer);
+
+            const layerURLs = {
+                "Bank Branch": "Add layer for Bank Branch",
+                "ATM": "Add layer for ATM",
+                "Bank Mitra": "Add layer for Bank Mitra",
+                "IPPB": "Add layer for ippb",
+                "CSC": "Add layer for CSC",
+                "Post Office": "Add layer for Post Office"
+            };
+
+            const layerColors = [
+                "#e6194b", "#3cb44b", "#ffe119", "#4363d8", "#f58231", "#911eb4"
+            ];
+
+            const compareGraphics = new GraphicsLayer();
+            map.add(compareGraphics);
+
+            // Variables to store selected geometries
+            let selectedStateGeom = null;
+            let selectedDistrictGeom = null;
+
+            // Populate state dropdown
+            stateLayer.queryFeatures({
+                where: "1=1",
+                outFields: ["stname"],
+                returnGeometry: false,
+                orderByFields: ["stname"]
+            }).then(function (results) {
+                const stateDropdown = document.getElementById("stateDropdown");
+                results.features.forEach(f => {
+                    const name = f.attributes.stname;
+                    const option = document.createElement("option");
+                    option.value = name;
+                    option.text = name;
+                    stateDropdown.appendChild(option);
+                });
+            }).catch(function (error) {
+                console.error("Error loading states: ", error);
+            });
+
+            // Update districts when state changes
+            document.getElementById("stateDropdown").addEventListener("change", function () {
+                const stateName = this.value;
+                const districtDropdown = document.getElementById("districtDropdown");
+
+                districtDropdown.innerHTML = '<option value="">Select District</option>';
+
+                if (!stateName) return;
+
+                // Query state geometry
+                stateLayer.queryFeatures({
+                    where: `stname='${stateName}'`,
+                    outFields: ["*"],
+                    returnGeometry: true
+                }).then(function (results) {
+                    if (results.features.length > 0) {
+                        const stateFeature = results.features[0];
+                        selectedStateGeom = stateFeature.geometry;
+                        selectedDistrictGeom = null;
+
+                        view.goTo(stateFeature.geometry.extent.expand(1.5));
+                        drawGraphics();
+
+                        // Fill districts dropdown
+                        districtLayer.queryFeatures({
+                            where: `stname='${stateName}'`,
+                            outFields: ["dtname"],
+                            returnGeometry: false,
+                            orderByFields: ["dtname"]
+                        }).then(function (results) {
+                            results.features.forEach(f => {
+                                const districtName = f.attributes.dtname;
+                                const option = document.createElement("option");
+                                option.value = districtName;
+                                option.text = districtName;
+                                districtDropdown.appendChild(option);
+                            });
+                        });
+                    }
+                });
+            });
+
+            // Update map when district changes
+            document.getElementById("districtDropdown").addEventListener("change", function () {
+                const distName = this.value;
+                if (!distName) return;
+
+                districtLayer.queryFeatures({
+                    where: `dtname='${distName}'`,
+                    outFields: ["*"],
+                    returnGeometry: true
+                }).then(function (results) {
+                    if (results.features.length > 0) {
+                        selectedDistrictGeom = results.features[0].geometry;
+                        drawGraphics();
+                        view.goTo(selectedDistrictGeom.extent.expand(1.5));
+                    }
+                });
+            });
+
+            // Function to draw state + district + masking
+            function drawGraphics() {
+                compareGraphics.removeAll();
+
+                if (selectedStateGeom) {
+                    const fullWorld = {
+                        type: "extent",
+                        xmin: -180,
+                        ymin: -90,
+                        xmax: 180,
+                        ymax: 90,
+                        spatialReference: { wkid: 4326 }
+                    };
+                    const maskGeom = geometryEngine.difference(fullWorld, selectedStateGeom);
+                    compareGraphics.add(new Graphic({
+                        geometry: maskGeom,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [200, 200, 200, 0.6],
+                            outline: null
+                        }
+                    }));
+
+                    compareGraphics.add(new Graphic({
+                        geometry: selectedStateGeom,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [0, 0, 255, 0.1],
+                            outline: { color: "blue", width: 2 }
+                        }
+                    }));
+                }
+
+                if (selectedDistrictGeom) {
+                    compareGraphics.add(new Graphic({
+                        geometry: selectedDistrictGeom,
+                        symbol: {
+                            type: "simple-fill",
+                            color: [255, 0, 0, 0.2],
+                            outline: { color: "red", width: 2 }
+                        }
+                    }));
+                }
+            }
+
+            // Initialize charts
+            const monthlyCtx = document.getElementById('monthlyChart').getContext('2d');
+            const layerCtx = document.getElementById('layerChart').getContext('2d');
+            const trendCtx = document.getElementById('trendChart').getContext('2d');
+
+            let monthlyChart, layerChart, trendChart;
+
+            // Submit button handler - FIXED LOADER ISSUE
+            document.getElementById("submitBtn").addEventListener("click", function () {
+                document.getElementById("legendItems").innerHTML = "";
+                document.getElementById("countsBox").innerHTML = "";
+
+                const state = document.getElementById("stateDropdown").value;
+                const district = document.getElementById("districtDropdown").value;
+                const dateFrom = document.getElementById("dateFrom").value;
+                const dateTo = document.getElementById("dateTo").value;
+
+                // Get checked layers
+                const checkedLayers = [];
+                document.querySelectorAll('.form-check-input:checked').forEach(checkbox => {
+                    checkedLayers.push(checkbox.value);
+                });
+
+                if (!state || !dateFrom || !dateTo || checkedLayers.length === 0) {
+                    alert("Please select a state, date range, and at least one layer.");
+                    return;
+                }
+
+                // Show loading indicator
+                const loadingOverlay = document.getElementById('loadingOverlay');
+                loadingOverlay.style.display = 'flex';
+
+                // Calculate months between dates
+                const fromDate = new Date(dateFrom);
+                const toDate = new Date(dateTo);
+                const monthDiff = monthDiffBetweenDates(fromDate, toDate);
+
+                // Generate sample data
+                const sampleData = generateSampleData(checkedLayers, monthDiff);
+
+                // Update charts
+                updateCharts(sampleData, checkedLayers, monthDiff);
+
+                // Query layers for the map
+                const counts = {};
+                let processedLayers = 0;
+                const totalLayers = checkedLayers.length;
+
+                checkedLayers.forEach((layerName, idx) => {
+                    const url = layerURLs[layerName];
+                    if (!url) {
+                        processedLayers++;
+                        checkAllLayersProcessed();
+                        return;
+                    }
+
+                    const color = layerColors[idx % layerColors.length];
+                    addLegendItem(color, layerName);
+                    counts[layerName] = 0;
+
+                    const lyr = new FeatureLayer({ url: url });
+                    let queryGeometry = selectedDistrictGeom || selectedStateGeom;
+
+                    if (!queryGeometry) {
+                        stateLayer.queryFeatures({
+                            where: `stname='${state}'`,
+                            returnGeometry: true
+                        }).then((results) => {
+                            if (results.features.length > 0) {
+                                queryGeometry = results.features[0].geometry;
+                                queryLayerFeatures(lyr, queryGeometry, layerName, color, counts);
+                            }
+                        });
+                    } else {
+                        queryLayerFeatures(lyr, queryGeometry, layerName, color, counts);
+                    }
+                });
+
+                function queryLayerFeatures(lyr, queryGeometry, layerName, color, counts) {
+                    lyr.queryFeatures({
+                        geometry: queryGeometry,
+                        spatialRelationship: "intersects",
+                        outFields: ["*"],
+                        returnGeometry: true
+                    }).then(r => {
+                        counts[layerName] = r.features.length;
+                        r.features.forEach(f => {
+                            compareGraphics.add(new Graphic({
+                                geometry: f.geometry,
+                                symbol: {
+                                    type: "simple-marker",
+                                    color: color,
+                                    size: 8,
+                                    outline: { color: "white", width: 1 }
+                                },
+                                attributes: { ...f.attributes, layer: layerName },
+                                popupTemplate: {
+                                    title: `${layerName}`,
+                                    content: Object.keys(f.attributes).map(k => `${k}: ${f.attributes[k]}`).join("<br>")
+                                }
+                            }));
+                        });
+                        updateCounts(counts, state, district);
+
+                        processedLayers++;
+                        checkAllLayersProcessed();
+                    }).catch(error => {
+                        console.error(`Error querying ${layerName}:`, error);
+                        processedLayers++;
+                        checkAllLayersProcessed();
+                    });
+                }
+
+                function checkAllLayersProcessed() {
+                    if (processedLayers === totalLayers) {
+                        // Hide loading overlay when all layers are processed
+                        loadingOverlay.style.display = 'none';
+                    }
+                }
+            });
+
+            function addLegendItem(color, label) {
+                const div = document.createElement("div");
+                div.className = "d-flex align-items-center mb-2";
+                div.innerHTML = `
+                    <div class="rounded me-2" style="width: 16px; height: 16px; background: ${color}; border: 1px solid #333;"></div>
+                    <small>${label}</small>
+                `;
+                document.getElementById("legendItems").appendChild(div);
+            }
+
+            function updateCounts(counts, state, district) {
+                let html = `
+                    <div class="stats-card text-center mb-3">
+                        <h6 class="mb-1">${district ? district + ', ' : ''}${state}</h6>
+                        <small>Selected Area</small>
+                    </div>
+                `;
+
+                Object.keys(counts).forEach(layer => {
+                    html += `
+                        <div class="d-flex justify-content-between align-items-center mb-2 p-2 rounded" style="background: #f8f9fa;">
+                            <span class="fw-medium">${layer}</span>
+                            <span class="badge bg-primary">${counts[layer]}</span>
+                        </div>
+                    `;
+                });
+
+                document.getElementById("countsBox").innerHTML = html;
+            }
+
+            function monthDiffBetweenDates(d1, d2) {
+                let months = (d2.getFullYear() - d1.getFullYear()) * 12;
+                months -= d1.getMonth();
+                months += d2.getMonth();
+                return months <= 0 ? 1 : months;
+            }
+
+            function generateSampleData(layers, monthCount) {
+                const data = {};
+
+                layers.forEach(layer => {
+                    data[layer] = [];
+                    let baseValue = Math.floor(Math.random() * 100) + 50;
+
+                    for (let i = 0; i < monthCount; i++) {
+                        baseValue += Math.floor(Math.random() * 20) - 5;
+                        if (baseValue < 10) baseValue = 10;
+                        data[layer].push(baseValue);
+                    }
+                });
+
+                return data;
+            }
+
+            function updateCharts(data, layers, monthCount) {
+                // Generate month labels
+                const monthLabels = [];
+                const currentDate = new Date(document.getElementById("dateFrom").value);
+
+                for (let i = 0; i < monthCount; i++) {
+                    const month = currentDate.toLocaleString('default', { month: 'short' });
+                    const year = currentDate.getFullYear();
+                    monthLabels.push(`${month} ${year}`);
+                    currentDate.setMonth(currentDate.getMonth() + 1);
+                }
+
+                // Monthly Comparison Chart
+                if (monthlyChart) monthlyChart.destroy();
+
+                const datasets = layers.map((layer, idx) => {
+                    return {
+                        label: layer,
+                        data: data[layer],
+                        borderColor: layerColors[idx % layerColors.length],
+                        backgroundColor: layerColors[idx % layerColors.length] + '40',
+                        tension: 0.3,
+                        fill: false
+                    };
+                });
+
+                monthlyChart = new Chart(monthlyCtx, {
+                    type: 'line',
+                    data: {
+                        labels: monthLabels,
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+
+                // Layer Distribution Chart
+                if (layerChart) layerChart.destroy();
+
+                const layerTotals = layers.map(layer => {
+                    return data[layer].reduce((sum, value) => sum + value, 0);
+                });
+
+                layerChart = new Chart(layerCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: layers,
+                        datasets: [{
+                            data: layerTotals,
+                            backgroundColor: layers.map((_, idx) => layerColors[idx % layerColors.length]),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                            }
+                        }
+                    }
+                });
+
+                // Growth Trend Chart
+                if (trendChart) trendChart.destroy();
+
+                const growthData = layers.map(layer => {
+                    const values = data[layer];
+                    if (values.length < 2) return 0;
+                    return ((values[values.length - 1] - values[0]) / values[0] * 100).toFixed(1);
+                });
+
+                trendChart = new Chart(trendCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: layers,
+                        datasets: [{
+                            label: 'Growth %',
+                            data: growthData,
+                            backgroundColor: layers.map((_, idx) => layerColors[idx % layerColors.length]),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: {
+                            legend: {
+                                display: false
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Percentage Growth'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+
+</html>
